@@ -113,17 +113,54 @@ class EntitlementUnenrollmentView extends Backbone.View {
     this.$submitButton.data('entitlementApiEndpoint', apiEndpoint);
   }
 
+  switchToSlideOne() {
+    // Randomize survey option order
+    const survey = document.querySelector('.options');
+    for (let i = survey.children.length - 1; i >= 0; i -= 1) {
+      survey.appendChild(survey.children[Math.trunc(Math.random() * i)]);
+    }
+    this.$('.inner-wrapper header').hide();
+    this.$('#unenroll_form').hide();
+    this.$('.slide1').removeClass('hidden');
+  }
+
+  switchToSlideTwo() {
+    let reason = this.$(".reasons_survey input[name='reason']:checked").attr('val');
+    if (reason === 'Other') {
+      reason = this.$('.other_text').val();
+    }
+    if (reason) {
+      window.analytics.track('entitltmenet_unenrollment_reason.selected', {
+        category: 'user-engagement',
+        label: reason,
+        displayName: 'v1',
+      });
+    }
+    this.$('.slide1').addClass('hidden');
+    this.$('.survey_course_name').text(this.$('#unenroll_course_name').text());
+    this.$('.slide2').removeClass('hidden');
+    this.$('.reasons_survey .return_to_dashboard').attr('href', this.urls.dashboard);
+    this.$('.reasons_survey .browse_courses').attr('href', this.urls.browseCourses);
+  }
+
   onComplete(xhr) {
     const status = xhr.status;
     const message = xhr.responseJSON && xhr.responseJSON.detail;
 
     if (status === 204) {
-      EntitlementUnenrollmentView.redirectTo(this.dashboardPath);
+      console.log('lets OPEN UP DAT UNENROLL SURVEY')
+      this.switchToSlideOne();
+      this.$('.reasons_survey:first .submit_reasons').click(this.switchToSlideTwo.bind(this));
+      //EntitlementUnenrollmentView.redirectTo(this.dashboardPath);
     } else if (status === 401 && message === 'Authentication credentials were not provided.') {
       EntitlementUnenrollmentView.redirectTo(`${this.signInPath}?next=${encodeURIComponent(this.dashboardPath)}`);
     } else {
       this.setError(this.genericErrorMsg);
     }
+  }
+
+  openUnenrollSurvey(){
+
   }
 
   static redirectTo(path) {
