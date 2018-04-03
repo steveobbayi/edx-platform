@@ -722,7 +722,7 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
                 xml.append(ele)
 
         edx_video_id = clean_video_id(self.edx_video_id)
-        if edx_video_id:
+        if edxval_api and edx_video_id:
             try:
                 # Create static dir if not created earlier.
                 resource_fs.makedirs(EXPORT_IMPORT_STATIC_DIR, recreate=True)
