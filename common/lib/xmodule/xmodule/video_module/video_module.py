@@ -988,7 +988,6 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             )
         return edx_video_id
 
-
     def index_dictionary(self):
         xblock_body = super(VideoDescriptor, self).index_dictionary()
         video_body = {
