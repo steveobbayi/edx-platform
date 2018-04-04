@@ -2,6 +2,7 @@
   "name": "edx",
   "version": "0.1.0",
   "dependencies": {
+    "@edx/cookie-policy-banner": "0.0.1",
     "@edx/edx-bootstrap": "0.4.3",
     "@edx/paragon": "1.7.1",
     "@edx/studio-frontend": "1.6.3",
