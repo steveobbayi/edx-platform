@@ -148,13 +148,15 @@ def async_migrate_transcript(self, course_key, **kwargs):
     force_update = kwargs['force_update']
     sub_tasks = []
 
-    LOGGER.info("[Transcript migration] process for course %s started", course_key)
     all_videos = get_videos_from_store(CourseKey.from_string(course_key))
-
+    LOGGER.info(
+        "[Transcript migration] process for course %s started. Migrating %s videos",
+        course_key,
+        len(all_videos)
+    )
     for video in all_videos:
         all_lang_transcripts = video.transcripts
         english_transcript = video.sub
-        LOGGER.info("[Transcript migration] process for video %s started", video.location)
         if english_transcript:
             all_lang_transcripts.update({'en': video.sub})
         for lang, _ in all_lang_transcripts.items():
@@ -167,10 +169,14 @@ def async_migrate_transcript(self, course_key, **kwargs):
                 sub_tasks.append(async_migrate_transcript_subtask.s(
                     video, lang, False, **kwargs
                 ))
-        LOGGER.info("[Transcript migration] process for video %s ended", video.location)
+    LOGGER.info("[Transcript migration] Migrating %s transcripts", len(sub_tasks))
     callback = task_status_callback.s()
     status = chord(sub_tasks)(callback)
-    LOGGER.info("[Transcript migration] process for course %s ended", course_key)
+    LOGGER.info(
+        "[Transcript migration] process for course %s ended. Migrated %s transcripts",
+        course_key,
+        len(status.get())
+    )
     return status.get()
 
 

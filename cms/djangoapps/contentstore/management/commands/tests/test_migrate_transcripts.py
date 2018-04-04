@@ -195,16 +195,17 @@ class TestMigrateTranscripts(ModuleStoreTestCase):
         expected_log = (
             (LOGGER_NAME,
              'INFO',
-             u'[Transcript migration] process for course {} started'.format(unicode(self.course.id))),
+             u'[Transcript migration] process for course {} started. Migrating 1 videos'.format(
+                 unicode(self.course.id)
+             )),
             (LOGGER_NAME,
              'INFO',
-             '[Transcript migration] process for video {} started'.format(unicode(self.video_descriptor.location))),
+             '[Transcript migration] Migrating 2 transcripts'),
             (LOGGER_NAME,
              'INFO',
-             '[Transcript migration] process for video {} ended'.format(unicode(self.video_descriptor.location))),
-            (LOGGER_NAME,
-             'INFO',
-             u'[Transcript migration] process for course {} ended'.format(unicode(self.course.id))),
+             u'[Transcript migration] process for course {} ended. Migrated 2 transcripts'.format(
+                 unicode(self.course.id)
+             )),
             (LOGGER_NAME,
              'INFO',
              '[Transcript migration] Result: Language hr transcript of video test_edx_video_id will be migrated'
