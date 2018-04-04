@@ -29,5 +29,30 @@ define(['jquery', 'jquery.cookie'], function($) {
                 }
             });
         });
+
+        $('input#password').blur(function() {
+            // Uninitialize the errors on blur
+            var $formErrors = $('#password_error');
+            $formErrors.empty();
+            $formErrors.addClass('hidden');
+
+            var data = {
+                password: $('#password').val()
+            };
+            $.ajax({
+                url: '/api/user/v1/validation/registration',
+                type: 'POST',
+                dataType: 'json',
+                data: data,
+                success: function(json) {
+                    _.each(json.validation_decisions, function(value, key) {
+                        if(key === 'password' && value) {
+                            $formErrors.html(value);
+                            $formErrors.removeClass('hidden');
+                        }
+                    });
+                }
+            });
+        });
     };
 });
