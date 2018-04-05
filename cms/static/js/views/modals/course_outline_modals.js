@@ -565,6 +565,7 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         className: 'edit-settings-access',
         events: {
             'change #prereq': 'handlePrereqSelect',
+            'change input[name=fulfillment_type]': 'toggleScore',
             'keyup #prereq_min_score': 'validateMinScore'
         },
         afterRender: function() {
@@ -575,6 +576,13 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             this.$('#prereq option[value="' + prereq + '"]').prop('selected', true);
             this.$('#prereq_min_score').val(prereq_min_score);
             this.$('#prereq_min_score_input').toggle(prereq.length > 0);
+            this.toggleScore();
+        },
+        toggleScore: function() {
+            var fulfillment_type = $('input[name=fulfillment_type]:checked').val();
+            var showScore = (fulfillment_type === 'score') ? true : false;
+            this.$('#prereq_min_score_input').toggle(showScore);
+            this.$('#prereq_min_completion_input').toggle(!showScore);
         },
         handlePrereqSelect: function() {
             var showPrereqInput = this.$('#prereq option:selected').val().length > 0;

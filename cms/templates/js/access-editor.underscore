@@ -4,7 +4,7 @@
         <div class="modal-section-content gating-prereq">
             <ul class="list-fields list-input">
                 <p class="field-message">
-                    <%- gettext('Select a prerequisite subsection and enter a minimum score percentage to limit access to this subsection.') %>
+                    <%- gettext('Select a prerequisite subsection and enter a minimum score percentage or minimum completion percentage to limit access to this subsection.') %>
                 </p>
                 <li class="field field-select">
                     <label class="label">
@@ -17,10 +17,28 @@
                         </select>
                     </label>
                 </li>
+                <li class="field-radio">
+                    <label class="label">
+                        <input type="radio" name="fulfillment_type" class="input input-radio" value="score" checked="checked"/>
+                        <%- gettext('By score') %>
+                    </label>
+                </li>
+                <li class="field-radio">
+                    <label class="label">
+                        <input type="radio" name="fulfillment_type" class="input input-radio" value="completion"/>
+                        <%- gettext('By completion') %>
+                    </label>
+                </li>
                 <li id="prereq_min_score_input" class="field field-input input-cosmetic">
                     <label class="label">
                         <%- gettext('Minimum Score:') %>
                         <input type="text" id="prereq_min_score" name="prereq_min_score" class="input input-text" size="3" />
+                    </label>
+                </li>
+                <li id="prereq_min_completion_input" class="field field-input input-cosmetic">
+                    <label class="label">
+                        <%- gettext('Minimum Completion Percentage:') %>
+                        <input type="text" id="prereq_min_completion" name="prereq_min_completion" class="input input-text" size="3" />
                     </label>
                 </li>
                 <div id="prereq_min_score_error" class="message-status error">
