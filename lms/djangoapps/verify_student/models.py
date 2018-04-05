@@ -21,6 +21,7 @@ import requests
 import six
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
@@ -34,6 +35,7 @@ from model_utils.models import StatusModel, TimeStampedModel
 from opaque_keys.edx.django.models import CourseKeyField
 
 from course_modes.models import CourseMode
+from third_party_auth.models import ProviderConfig
 from lms.djangoapps.verify_student.ssencrypt import (
     encrypt_and_encode,
     generate_signed_message,
@@ -89,8 +91,50 @@ def status_before_must_be(*valid_start_statuses):
 
     return decorator_func
 
+class IDVerificationAttempt(StatusModel):
+    """
+    Each IDVerificationAttempt represents a Student's attempt to establish
+    their identity through one of several methods that inherit from this Model,
+    including PhotoVerification and SSOVerification.
+    """
+    STATUS = Choices('created', 'ready', 'submitted', 'must_retry', 'approved', 'denied')
+    user = models.ForeignKey(User, db_index=True)
 
-class PhotoVerification(StatusModel):
+    # They can change their name later on, so we want to copy the value here so
+    # we always preserve what it was at the time they requested. We only copy
+    # this value during the mark_ready() step. Prior to that, you should be
+    # displaying the user's name from their user.profile.name.
+    name = models.CharField(blank=True, max_length=255)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta(object):
+        app_label = "verify_student"
+        abstract = True
+        ordering = ['-created_at']
+
+    @property
+    def expiration_datetime(self):
+        """Datetime that the verification will expire. """
+        days_good_for = settings.VERIFY_STUDENT["DAYS_GOOD_FOR"]
+        return self.created_at + timedelta(days=days_good_for)
+
+
+class SSOVerification(IDVerificationAttempt):
+    """
+    Each SSOVerification represents a Student's attempt to establish their identity
+    by signing in with SSO. ID verification through SSO bypasses the need for
+    photo verification.
+    """
+    identity_provider = GenericRelation(ProviderConfig)
+
+    class Meta(object):
+        app_label = "verify_student"
+        abstract = True
+
+
+class PhotoVerification(IDVerificationAttempt):
     """
     Each PhotoVerification represents a Student's attempt to establish
     their identity by uploading a photo of themselves and a picture ID. An
@@ -124,7 +168,8 @@ class PhotoVerification(StatusModel):
         student cannot re-open this attempt -- they have to create another
         attempt and submit it instead.
 
-    Because this Model inherits from StatusModel, we can also do things like::
+    Because this Model inherits from IDVerificationAttempt, which inherits
+    from StatusModel, we can also do things like:
 
         attempt.status == PhotoVerification.STATUS.created
         attempt.status == "created"
@@ -132,15 +177,6 @@ class PhotoVerification(StatusModel):
     """
     ######################## Fields Set During Creation ########################
     # See class docstring for description of status states
-    STATUS = Choices('created', 'ready', 'submitted', 'must_retry', 'approved', 'denied')
-    user = models.ForeignKey(User, db_index=True)
-
-    # They can change their name later on, so we want to copy the value here so
-    # we always preserve what it was at the time they requested. We only copy
-    # this value during the mark_ready() step. Prior to that, you should be
-    # displaying the user's name from their user.profile.name.
-    name = models.CharField(blank=True, max_length=255)
-
     # Where we place the uploaded image files (e.g. S3 URLs)
     face_image_url = models.URLField(blank=True, max_length=255)
     photo_id_image_url = models.URLField(blank=True, max_length=255)
@@ -153,9 +189,6 @@ class PhotoVerification(StatusModel):
         default=generateUUID,
         max_length=255,
     )
-
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
     # Indicates whether or not a user wants to see the verification status
     # displayed on their dash.  Right now, only relevant for allowing students
@@ -191,7 +224,6 @@ class PhotoVerification(StatusModel):
     class Meta(object):
         app_label = "verify_student"
         abstract = True
-        ordering = ['-created_at']
 
     ##### Methods listed in the order you'd typically call them
     @classmethod
@@ -399,12 +431,6 @@ class PhotoVerification(StatusModel):
         for verification in candidates:
             if verification.active_at_datetime(deadline):
                 return verification
-
-    @property
-    def expiration_datetime(self):
-        """Datetime that the verification will expire. """
-        days_good_for = settings.VERIFY_STUDENT["DAYS_GOOD_FOR"]
-        return self.created_at + timedelta(days=days_good_for)
 
     def active_at_datetime(self, deadline):
         """Check whether the verification was active at a particular datetime.
