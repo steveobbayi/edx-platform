@@ -58,7 +58,7 @@ class TestArgParsing(TestCase):
     Tests for parsing arguments for the `migrate_transcripts` management command
     """
     def test_no_args(self):
-        errstring = "At least one course or --all-courses must be specified."
+        errstring = "Must specify exactly one of --course_ids, --all_courses, --from_settings"
         with self.assertRaisesRegexp(CommandError, errstring):
             call_command('migrate_transcripts')
 
@@ -207,7 +207,7 @@ class TestMigrateTranscripts(ModuleStoreTestCase):
              '[Transcript migration] Migrating 2 transcripts'),
             (LOGGER_NAME,
              'INFO',
-             u'[Transcript migration] process for course {} ended. Migrated 2 transcripts'.format(
+             u'[Transcript migration] process for course {} ended. Processed 2 transcripts'.format(
                  unicode(self.course.id)
              )),
             (LOGGER_NAME,

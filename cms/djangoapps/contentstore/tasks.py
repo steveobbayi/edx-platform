@@ -83,7 +83,6 @@ VIDEO_LEVEL_TIMEOUT_SECONDS = 300
 
 def enqueue_async_migrate_transcripts_tasks(
         course_keys,
-        all_courses=DEFAULT_ALL_COURSES,
         force_update=DEFAULT_FORCE_UPDATE,
         commit=DEFAULT_COMMIT
 ):
@@ -96,13 +95,10 @@ def enqueue_async_migrate_transcripts_tasks(
         force_update: Overwrite file in S3. Default is False,
         commit: Update S3 or dry-run the command to see which transcripts will be affected. Default is False.
     """
-    store = modulestore()
     kwargs = {
         'force_update': force_update,
         'commit': commit
     }
-    if all_courses:
-        course_keys = [course.id for course in store.get_course_summaries()]
 
     tasks = [
         async_migrate_transcript.s(
@@ -176,7 +172,7 @@ def async_migrate_transcript(self, course_key, **kwargs):
     callback = task_status_callback.s()
     status = chord(sub_tasks)(callback)
     LOGGER.info(
-        "[Transcript migration] process for course %s ended. Migrated %s transcripts",
+        "[Transcript migration] process for course %s ended. Processed %s transcripts",
         course_key,
         len(status.get())
     )

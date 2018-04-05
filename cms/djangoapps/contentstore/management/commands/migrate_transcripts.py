@@ -1,21 +1,21 @@
 """
-Command to migrate transcripts to S3.
+Command to migrate transcripts to django storage.
 """
 
 import logging
-
 from django.core.management import BaseCommand, CommandError
-
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import CourseLocator
-
 from cms.djangoapps.contentstore.tasks import (
     DEFAULT_ALL_COURSES,
     DEFAULT_FORCE_UPDATE,
     DEFAULT_COMMIT,
     enqueue_async_migrate_transcripts_tasks
 )
+from openedx.core.lib.command_utils import get_mutually_exclusive_required_option, parse_course_keys
+from openedx.core.djangoapps.video_config.models import TranscriptMigrationSetting
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +24,8 @@ class Command(BaseCommand):
     """
     Example usage:
         $ ./manage.py cms migrate_transcripts --all-courses --force-update --commit
-        $ ./manage.py cms migrate_transcripts --course-id 'Course1' -course-id 'Course2' --commit
+        $ ./manage.py cms migrate_transcripts --course-id 'Course1' --course-id 'Course2' --commit
+        $ ./manage.py cms migrate_transcripts --from-settings
     """
     args = '<course_id course_id ...>'
     help = 'Migrates transcripts to S3 for one or more courses.'
@@ -34,16 +35,29 @@ class Command(BaseCommand):
         Add arguments to the command parser.
         """
         parser.add_argument(
-            '--course-id',
-            dest='course_id',
-            action='append'
+            '--course-id', '--course_id',
+            dest='course_ids',
+            action='append',
+            help=u'Migrates transcripts for list of courses.'
         )
         parser.add_argument(
-            '--all-courses', '--all',
+            '--all-courses', '--all', '--all_courses',
             dest='all_courses',
             action='store_true',
             default=DEFAULT_ALL_COURSES,
             help=u'Migrates transcripts to S3 for all courses.'
+        )
+        parser.add_argument(
+            '--from-settings', '--from_settings',
+            dest='from_settings',
+            help='Migrate Transcripts with settings set via Django admin',
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument(
+            '--routing-key', '--routing_key',
+            dest='routing_key',
+            help='Celery routing key to use.',
         )
         parser.add_argument(
             '--force-update', '--force_update',
@@ -57,7 +71,7 @@ class Command(BaseCommand):
             dest='commit',
             action='store_true',
             default=DEFAULT_COMMIT,
-            help=u'Commits the discovered video transcripts to S3. '
+            help=u'Commits the discovered video transcripts to django storage. '
                  u'Without this flag, the command will return the transcripts discovered for migration '
         )
 
@@ -73,21 +87,36 @@ class Command(BaseCommand):
 
         return result
 
+    def _get_migration_options(self, options):
+        """
+        Returns the command arguments configured via django admin.
+        """
+        force_update = options['force_update']
+        commit = options['commit']
+        courses_mode = get_mutually_exclusive_required_option(options, 'course_ids', 'all_courses', 'from_settings')
+        if courses_mode == 'all_courses':
+            course_keys = [course.id for course in modulestore().get_course_summaries()]
+        elif courses_mode == 'course_ids':
+            course_keys = map(self._parse_course_key, options['course_ids'])
+        else:
+            course_keys = parse_course_keys(self._latest_settings().course_ids.split())
+            force_update = self._latest_settings().force_update
+            commit = self._latest_settings().commit
+
+        return course_keys, force_update, commit
+
+    def _latest_settings(self):
+        """
+        Return the latest version of the TranscriptMigrationSetting
+        """
+        return TranscriptMigrationSetting.current()
+
     def handle(self, *args, **options):
         """
         Invokes the migrate transcripts enqueue function.
         """
-        course_ids = options['course_id']
-        all_option = options['all_courses']
-        if course_ids is None:
-            course_ids = []
-
-        if (not course_ids and not all_option) or (course_ids and all_option):
-            raise CommandError("At least one course or --all-courses must be specified.")
-
-        kwargs = {key: options[key] for key in ['all_courses', 'force_update', 'commit'] if options.get(key)}
-        course_keys = map(self._parse_course_key, course_ids)
-
+        course_keys, force_update, commit = self._get_migration_options(options)
+        kwargs = {'force_update': force_update, 'commit': commit}
         try:
             enqueue_async_migrate_transcripts_tasks(
                 course_keys,

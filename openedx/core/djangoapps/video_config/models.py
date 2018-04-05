@@ -2,7 +2,7 @@
 Configuration models for Video XModule
 """
 from config_models.models import ConfigurationModel
-from django.db.models import BooleanField
+from django.db.models import BooleanField, TextField
 from opaque_keys.edx.django.models import CourseKeyField
 
 
@@ -130,3 +130,15 @@ class CourseVideoTranscriptEnabledFlag(ConfigurationModel):
             course_key=unicode(self.course_id),
             not_enabled=not_en
         )
+
+
+class TranscriptMigrationSetting(ConfigurationModel):
+    """
+    Arguments for the Transcript Migration management command
+    """
+    force_update = BooleanField(default=False)
+    commit = BooleanField(default=False)
+    course_ids = TextField(
+        blank=False,
+        help_text="Whitespace-separated list of course keys for which to migrate transcripts."
+    )
