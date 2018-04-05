@@ -160,7 +160,10 @@ def async_migrate_transcript(self, course_key, **kwargs):
         if english_transcript:
             all_lang_transcripts.update({'en': video.sub})
         for lang, _ in all_lang_transcripts.items():
-            transcript_already_present = is_transcript_available(video.edx_video_id, lang)
+            transcript_already_present = is_transcript_available(
+                clean_video_id(video.edx_video_id),
+                lang
+            )
             if transcript_already_present and force_update:
                 sub_tasks.append(async_migrate_transcript_subtask.s(
                     video, lang, True, **kwargs
@@ -231,7 +234,7 @@ def async_migrate_transcript_subtask(self, *args, **kwargs):
             video.save_with_metadata(user=User.objects.get(username='staff'))
         if video.edx_video_id:
             result = save_transcript_to_storage(
-                video.edx_video_id,
+                clean_video_id(video.edx_video_id),
                 language_code,
                 transcript_content,
                 Transcript.SJSON,
