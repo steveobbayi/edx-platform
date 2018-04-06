@@ -308,8 +308,7 @@ class UnenrollmentView(APIView):
 
             * Unenroll a single user from all courses.
 
-              This command should only be issued from a Jenkins job that retires a user
-              from edX.
+              This command can only be issued by a privileged service user.
 
         **Example Requests**
 
@@ -322,8 +321,8 @@ class UnenrollmentView(APIView):
               A POST request must include the following parameter.
 
               * user: The username of the user being unenrolled.
-              This will never match the username from the request, since
-              the request is issued via Jenkins.
+              This will never match the username from the request,
+              since the request is issued as a privileged service user.
 
         **POST Response Values**
 

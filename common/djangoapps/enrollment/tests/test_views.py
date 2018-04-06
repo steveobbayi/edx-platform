@@ -1253,7 +1253,6 @@ class UnenrollmentTest(EnrollmentTestMixin, ModuleStoreTestCase):
         self.client.login(username=self.USERNAME, password=self.PASSWORD)
         for course in self.courses:
             self.assert_enrollment_status(course_id=str(course.id), username=self.USERNAME, is_active=True)
-        self.assertEqual(len(self._get_enrollments()), 4)
 
     def build_jwt_headers(self, user):
         """
@@ -1271,7 +1270,7 @@ class UnenrollmentTest(EnrollmentTestMixin, ModuleStoreTestCase):
         data = json.loads(response.content)
         # order doesn't matter so compare sets
         self.assertEqual(set(data), self.orgs)
-        self._assert_active(expected_active=False)
+        self._assert_inactive()
 
     def test_deactivate_enrollments_unauthorized(self):
         self._assert_active()
@@ -1303,13 +1302,18 @@ class UnenrollmentTest(EnrollmentTestMixin, ModuleStoreTestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         data = json.loads(response.content)
         self.assertEqual(data['message'], "The user {} is not enrolled in any courses.".format(self.user.username))
-        self._assert_active(expected_active=False)
+        self._assert_inactive()
 
-    def _assert_active(self, expected_active=True):
+    def _assert_active(self):
         for course in self.courses:
-            self.assertEqual(CourseEnrollment.is_enrolled(self.user, course.id), expected_active)
+            self.assertTrue(CourseEnrollment.is_enrolled(self.user, course.id))
             _, is_active = CourseEnrollment.enrollment_mode_for_user(self.user, course.id)
-            self.assertEqual(is_active, expected_active)
+            self.assertTrue(is_active)
+
+    def _assert_inactive(self):
+        for course in self.courses:
+            _, is_active = CourseEnrollment.enrollment_mode_for_user(self.user, course.id)
+            self.assertFalse(is_active)
 
     def _submit_unenroll(self, submitting_user, unenrolling_username):
         data = {'user': unenrolling_username}
