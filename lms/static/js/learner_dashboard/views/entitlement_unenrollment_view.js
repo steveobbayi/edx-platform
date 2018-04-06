@@ -25,8 +25,11 @@ class EntitlementUnenrollmentView extends Backbone.View {
 
     this.dashboardPath = options.dashboardPath;
     this.signInPath = options.signInPath;
+    this.browseCourses = options.browseCourses;
+    this.isEdx = options.isEdx;
 
     this.$submitButton = $(this.submitButtonSelector);
+    this.$closeButton = $(this.closeButtonSelector);
     this.$headerText = $(this.headerTextSelector);
     this.$errorText = $(this.errorTextSelector);
 
@@ -53,6 +56,10 @@ class EntitlementUnenrollmentView extends Backbone.View {
     const courseName = $trigger.data('courseName');
     const courseNumber = $trigger.data('courseNumber');
     const apiEndpoint = $trigger.data('entitlementApiEndpoint');
+
+    this.$selectedTrigger = $trigger;
+    console.log('this.selectedTrigger: ', this.$selectedTrigger);
+    console.log('this.selectedTrigger.id: ', this.$selectedTrigger.id);
 
     this.resetModal();
     this.setHeaderText(courseName, courseNumber);
@@ -119,9 +126,19 @@ class EntitlementUnenrollmentView extends Backbone.View {
     for (let i = survey.children.length - 1; i >= 0; i -= 1) {
       survey.appendChild(survey.children[Math.trunc(Math.random() * i)]);
     }
-    this.$('.inner-wrapper header').hide();
-    this.$('#unenroll_form').hide();
+    console.log('in switch to slide1')
+    console.log('grabbing inner header: ', this.$('.entitlement-unenrollment-modal-inner-wrapper header'))
+    this.$('.entitlement-unenrollment-modal-inner-wrapper header').hide();
+    this.$('.entitlement-unenrollment-modal-submit-wrapper').hide();
     this.$('.slide1').removeClass('hidden');
+
+    // Reindex which items should be focusable, methods from accessibility_tools.js
+    const modalId = `#${this.$el.attr('id')}`;
+    const mainPageId = this.mainPageSelector;
+    const focusableItems = _adjust_tabindexes_and_aria_hidden(window.focusableElementsString, this.closeButtonSelector, modalId, mainPageId);
+    const $last = _trap_tab_focus(focusableItems, this.closeButtonSelector);
+    _trap_shift_tab_focus(this.closeButtonSelector, $last);
+    _bind_escape_key_listener(modalId, this.closeButtonSelector);
   }
 
   switchToSlideTwo() {
@@ -130,17 +147,25 @@ class EntitlementUnenrollmentView extends Backbone.View {
       reason = this.$('.other_text').val();
     }
     if (reason) {
-      window.analytics.track('entitltmenet_unenrollment_reason.selected', {
+      window.analytics.track('entitlement_unenrollment_reason.selected', {
         category: 'user-engagement',
         label: reason,
         displayName: 'v1',
       });
     }
     this.$('.slide1').addClass('hidden');
-    this.$('.survey_course_name').text(this.$('#unenroll_course_name').text());
+    //.this.$('.survey_course_name').text(this.$('#unenroll_course_name').text());
     this.$('.slide2').removeClass('hidden');
-    this.$('.reasons_survey .return_to_dashboard').attr('href', this.urls.dashboard);
-    this.$('.reasons_survey .browse_courses').attr('href', this.urls.browseCourses);
+    this.$('.reasons_survey .return_to_dashboard').attr('href', this.dashboardPath);
+    this.$('.reasons_survey .browse_courses').attr('href', this.browseCourses);
+
+    // Reindex which items should be focusable, methods from accessibility_tools.js
+    const modalId = `#${this.$el.attr('id')}`;
+    const mainPageId = this.mainPageSelector;
+    const focusableItems = _adjust_tabindexes_and_aria_hidden(window.focusableElementsString, this.closeButtonSelector, modalId, mainPageId);
+    const $last = _trap_tab_focus(focusableItems, this.closeButtonSelector);
+    _trap_shift_tab_focus(this.closeButtonSelector, $last);
+    _bind_escape_key_listener(modalId, this.closeButtonSelector);
   }
 
   onComplete(xhr) {
@@ -148,19 +173,18 @@ class EntitlementUnenrollmentView extends Backbone.View {
     const message = xhr.responseJSON && xhr.responseJSON.detail;
 
     if (status === 204) {
-      console.log('lets OPEN UP DAT UNENROLL SURVEY')
-      this.switchToSlideOne();
-      this.$('.reasons_survey:first .submit_reasons').click(this.switchToSlideTwo.bind(this));
-      //EntitlementUnenrollmentView.redirectTo(this.dashboardPath);
+      if (this.isEdx) {
+        console.log('opening unenroll survey')
+        this.switchToSlideOne();
+        this.$('.reasons_survey:first .submit_reasons').click(this.switchToSlideTwo.bind(this));
+      } else {
+        EntitlementUnenrollmentView.redirectTo(this.dashboardPath);
+      }
     } else if (status === 401 && message === 'Authentication credentials were not provided.') {
       EntitlementUnenrollmentView.redirectTo(`${this.signInPath}?next=${encodeURIComponent(this.dashboardPath)}`);
     } else {
       this.setError(this.genericErrorMsg);
     }
-  }
-
-  openUnenrollSurvey(){
-
   }
 
   static redirectTo(path) {
