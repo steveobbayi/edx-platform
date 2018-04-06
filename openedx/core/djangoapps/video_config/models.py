@@ -136,8 +136,19 @@ class TranscriptMigrationSetting(ConfigurationModel):
     """
     Arguments for the Transcript Migration management command
     """
-    force_update = BooleanField(default=False)
-    commit = BooleanField(default=False)
+    def __unicode__(self):
+        return (
+            "[TranscriptMigrationSetting] Courses {} with update if already present as {} and commit as {}"
+        ).format(self.course_ids, self.force_update, self.commit)
+
+    force_update = BooleanField(
+        default=False,
+        help_text="Flag to update transcripts in django storage even if already present."
+    )
+    commit = BooleanField(
+        default=False,
+        help_text="Dry-run or commit."
+    )
     course_ids = TextField(
         blank=False,
         help_text="Whitespace-separated list of course keys for which to migrate transcripts."
